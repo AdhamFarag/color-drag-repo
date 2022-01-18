@@ -1,54 +1,43 @@
 using Newtonsoft.Json;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
-using UnityEngine.UI;
-
+using System.Threading.Tasks;
 public class HighScoreApi : MonoBehaviour
 {
 
     private string HIGHSCORE_API_URL = "http://127.0.0.1:5000/HighScore";
 
-    public void GET_CallHighScoreAPI()
+    public Dictionary<string, string> returned_values;
+    public async Task<Dictionary<string, string>> GetHighScore()
     {
-        StartCoroutine(GetRequest(HIGHSCORE_API_URL, LoadJsonDataCallBack));
-    }
-
-    private IEnumerator GetRequest(string url, Action<string> callback)
-    {
-        string response;
-
-        UnityWebRequest www = UnityWebRequest.Get(url);
-        www.downloadHandler = new DownloadHandlerBuffer();
-
-        yield return www.SendWebRequest();
-
-        if (www.isNetworkError)
+        using var www = UnityWebRequest.Get(HIGHSCORE_API_URL);
+        var operation = www.SendWebRequest();
+        while (!operation.isDone)
         {
-            response = null;
+            await Task.Yield();
+        }
+        var jsonResponse = www.downloadHandler.text;
+
+        if (www.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log(www.downloadHandler.text);
         }
         else
         {
-            response = www.downloadHandler.text;
-            Debug.Log(response);
+            Debug.Log("failed" + www.error);
         }
 
-        callback(response);
-    }
-
-    private void LoadJsonDataCallBack(string res)
-    {
-        if (res != null)
+        try
         {
-            var values = JsonConvert.DeserializeObject<Dictionary<string, string>>(res);
-            Debug.Log(values);
-            foreach (var item in values)
-            {
-                Debug.Log(item.Key + " : " + item.Value);
-            }
-        }
-    }
+            var result = JsonConvert.DeserializeObject<Dictionary<string,string>>(jsonResponse);
+            return result;
 
+        }catch(Exception ex)
+        {
+            Debug.Log("OPERATION FAILED" + ex.Message);
+        }
+        return null;
+    }
 }
